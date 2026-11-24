@@ -1,0 +1,3 @@
+# Dependencies for the Chinese local web and desktop entry points.
+-r requirements-source.txt
+playwright==1.60.0

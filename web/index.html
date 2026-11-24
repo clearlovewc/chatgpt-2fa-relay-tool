@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>ChatGPT 2FA · 本地工具</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%231b6655'/%3E%3Cpath d='M32 13 48 19v12c0 10-7 17-16 21-9-4-16-11-16-21V19Z' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='m24 32 5 5 11-12' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/relay-settings.js" defer></script>
+  <script src="/assets/relay-reauth.js" defer></script>
+  <script src="/assets/relay-watch.js" defer></script>
+  <script src="/assets/relay.js" defer></script>
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v5c0 5-3.5 8.4-8 10-4.5-1.6-8-5-8-10V6l8-3Z"/><path d="m8 12 2.5 2.5L16 9"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="9" r="5"/><path d="m12 13 8 8m-4-4 3-3m-6 0 3-3"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1-1.5 2m0 3h.01"/></symbol>
+    <symbol id="i-document" viewBox="0 0 24 24"><path d="M14 3H5v18h14V8l-5-5Z"/><path d="M14 3v6h5M8 13h8m-8 4h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="工具导航">
+      <a class="brand" href="#workspace" aria-label="ChatGPT 2FA 首页"><span class="brand-mark"><svg class="icon"><use href="#i-shield"/></svg></span><span><strong>2FA Studio</strong><small>ChatGPT 账号工具</small></span></a>
+      <div class="nav-label">工作台</div>
+      <nav>
+        <a id="workspaceNav" aria-label="批量更换" class="nav-item active" href="#workspace" aria-current="page"><svg class="icon"><use href="#i-key"/></svg><span>批量更换</span><span class="nav-dot"></span></a>
+        <a id="historyNav" aria-label="历史记录" class="nav-item" href="#history"><svg class="icon"><use href="#i-clock"/></svg><span>历史记录</span></a>
+        <a id="relayNav" class="nav-item" href="#relay"><svg class="icon"><use href="#i-monitor"/></svg><span>中转站上号</span></a>
+      </nav>
+      <div class="sidebar-note"><svg class="icon"><use href="#i-monitor"/></svg><strong id="sidebarNoteTitle">进度与结果自动保存</strong><p id="sidebarNoteText">每一次更换都有记录，刷新后也能继续查看。</p><span class="local-tag"><span class="status-dot"></span>本地工具</span></div>
+      <div class="sidebar-bottom">批量处理，逐条确认。</div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar"><div class="breadcrumb"><span>本地工具</span><span class="slash">/</span><span id="breadcrumbCurrent">批量更换</span></div><div id="connectionStatus" class="connection-status connecting" role="status"><span class="status-dot"></span><span id="connectionText">正在连接</span></div></header>
+      <div id="connectionNotice" class="notice top-notice" role="status" hidden><span id="connectionNoticeText"></span><button id="reconnectButton" type="button" class="text-button">重新连接</button><button id="refreshButton" type="button" class="text-button" hidden>刷新页面</button></div>
+
+      <section id="workspaceView" aria-labelledby="workspaceTitle">
+        <div class="page-heading"><div><div class="eyebrow">ACCOUNT SECURITY</div><h1 id="workspaceTitle">批量更换 2FA<span class="heading-dot">.</span></h1><p>先处理新账号，已有记录的账号确认后再次更换。</p></div><span class="scope-label"><svg class="icon"><use href="#i-shield"/></svg>只更换 2FA · 保留密码</span></div>
+        <div class="workspace-grid batch-workspace">
+          <div class="primary-column">
+            <section class="card input-card" aria-labelledby="inputTitle">
+              <div class="card-heading"><div class="title-with-number"><span class="section-number">01</span><h2 id="inputTitle">添加账号</h2></div><span id="accountCount" class="quiet-label">0 个账号</span></div>
+              <form id="accountForm" autocomplete="off">
+                <label for="accountInput" class="field-label">每行一个账号</label>
+                <div class="input-wrap textarea-wrap"><textarea id="accountInput" name="accounts" class="secret-masked" rows="5" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="邮箱----密码----当前2FA密钥&#10;邮箱----密码----当前2FA密钥" maxlength="4200000" aria-describedby="accountHint formError" required></textarea><button id="toggleInput" class="visibility-button" type="button" aria-label="显示账号信息" aria-pressed="false"><svg class="icon"><use href="#i-eye"/></svg></button></div>
+                <p id="accountHint" class="field-hint">一次最多 500 个账号。最后一项填写当前验证器密钥，已改过的账号也可以再次更换。</p>
+                <div class="options-row"><label class="checkbox-label"><input id="systemProxy" type="checkbox" checked><span>使用系统代理</span></label><label class="checkbox-label"><input id="browserLogin" type="checkbox"><span>使用 Chrome 登录</span></label></div>
+                <div class="repeat-preference"><label class="checkbox-label"><input id="logoutOtherSessions" type="checkbox" aria-describedby="sessionCleanupHint" disabled><span>更换后退出不同地点的会话</span></label><p id="sessionCleanupHint">默认关闭。开启后，新 2FA 验证通过才按活动会话显示的城市／地区保留同地点会话，退出其他地点。此选择随批次保存。</p></div>
+                <div class="repeat-preference"><label class="checkbox-label"><input id="skipHistoryConfirmation" type="checkbox"><span>历史账号无需确认，直接更换</span></label><p id="preferenceStatus">此选项会记住，下次提交继续使用。当前已等待确认的账号仍需手动确认。</p></div>
+                <p id="formError" class="form-error" role="alert" hidden></p>
+                <div class="form-actions"><button id="startButton" class="button button-primary" type="submit" disabled><span id="startButtonText">开始批量更换</span><svg class="icon"><use href="#i-arrow"/></svg></button><span class="action-hint">逐条处理 · 结果自动保存</span></div>
+              </form>
+            </section>
+
+            <section class="card progress-card" aria-labelledby="progressTitle">
+              <div class="card-heading"><div class="title-with-number"><span class="section-number">02</span><h2 id="progressTitle">当前批次</h2></div><span id="batchBadge" class="badge neutral">等待开始</span></div>
+              <div id="batchSummary" class="batch-summary" hidden><div><strong id="countTotal">0</strong><span>总计</span></div><div><strong id="countSuccess">0</strong><span>成功</span></div><div><strong id="countPending">0</strong><span>待确认</span></div><div><strong id="countError">0</strong><span>未完成</span></div></div>
+              <div class="progress-message"><span id="progressIndicator" class="progress-indicator"></span><p id="progressMessage" role="status" aria-live="polite">粘贴多条账号后，点击“开始批量更换”。</p></div>
+              <div id="resumeBox" class="resume-box" hidden><p>本批次有中断任务，将按已保存的阶段继续，不会重新创建一轮更换。</p><button id="resumeButton" class="button button-secondary" type="button">继续未完成批次</button></div>
+              <div id="batchTableWrap" class="table-scroll batch-table-wrap" hidden><table class="record-table batch-table"><thead><tr><th scope="col">账号</th><th scope="col">处理状态</th><th scope="col">操作</th></tr></thead><tbody id="batchRows"></tbody></table></div>
+              <div id="confirmationBox" class="confirmation-box" hidden>
+                <div class="confirmation-heading"><h3>以下账号已有更换记录</h3><span id="confirmationCount" class="badge history">待确认</span></div>
+                <p id="confirmationHint">确认后将使用本次输入的当前密钥，再次更换这些账号的 2FA。</p>
+                <label class="checkbox-label confirmation-select-all"><input id="selectAllPending" type="checkbox"><span>全选待确认账号</span></label>
+                <div id="confirmationList" class="confirmation-list"></div>
+                <div class="confirmation-actions"><button id="confirmButton" class="button button-primary" type="button" disabled>确认并继续</button><button id="skipButton" class="button button-secondary" type="button" disabled>跳过所选</button></div>
+              </div>
+              <div id="logSection" hidden><div class="activity-heading"><span id="logAccount">运行记录</span><button id="followButton" class="text-button" type="button">跟随当前任务</button></div><div id="logViewport" class="log-viewport"><p id="emptyLogs" class="empty-logs">这条账号尚无运行记录。</p><ol id="eventLog" class="event-log" aria-label="运行记录"></ol></div></div>
+              <p class="background-note"><svg class="icon"><use href="#i-clock"/></svg>关闭网页不取消任务。进度和结果会保存到本机历史记录。</p>
+            </section>
+          </div>
+
+          <div class="secondary-column">
+            <section class="card result-card" aria-labelledby="resultTitle">
+              <div class="card-heading"><div class="title-with-number"><span class="section-number">03</span><h2 id="resultTitle">成功结果</h2></div><span id="resultBadge" class="badge success" hidden>已验证</span></div>
+              <div id="resultEmpty" class="result-empty"><div class="result-illustration"><svg class="icon"><use href="#i-document"/></svg><span><svg class="icon"><use href="#i-check"/></svg></span></div><h3>每条结果都会保留</h3><p>完成的账号可以单独查看，<br>也可以一次导出本批成功结果。</p></div>
+              <div id="resultContent" hidden><p id="resultSummary" class="result-success-mark"></p><label for="resultInput" class="field-label">完整账号结果</label><div class="input-wrap textarea-wrap result-textarea-wrap"><textarea id="resultInput" rows="4" readonly class="secret-masked" autocomplete="off" spellcheck="false" aria-label="完整账号结果"></textarea><button id="toggleResult" class="visibility-button" type="button" aria-label="显示完整结果" aria-pressed="false"><svg class="icon"><use href="#i-eye"/></svg></button></div><p class="result-format">邮箱----原密码----新2FA密钥</p><p id="resultContext" class="result-context"></p><div class="result-actions"><button id="copyButton" class="button button-primary" type="button" disabled><svg class="icon"><use href="#i-copy"/></svg>复制结果</button><button id="downloadButton" class="button button-secondary" type="button" disabled><svg class="icon"><use href="#i-download"/></svg>下载</button></div></div>
+              <button id="batchResultsButton" class="button button-secondary full-width export-batch" type="button" disabled>读取本批成功结果</button>
+              <div class="history-action"><button id="lastResultButton" class="text-button" type="button" disabled><svg class="icon"><use href="#i-clock"/></svg>读取上次单条结果<svg class="icon small-arrow"><use href="#i-arrow"/></svg></button><p>所有更换记录都可以在左侧“历史记录”中找到。</p></div>
+            </section>
+            <section class="usage-card" aria-labelledby="usageTitle"><div class="usage-title"><svg class="icon"><use href="#i-help"/></svg><h2 id="usageTitle">处理顺序</h2></div><ol><li><span>1</span><p>优先处理没有历史记录的账号。</p></li><li><span>2</span><p>已有记录的账号会等待你的确认；勾选默认选项后，后续提交可直接处理。</p></li><li><span>3</span><p>结果逐条保存，忘记下载也能在历史记录中重新查看。</p></li></ol></section>
+          </div>
+        </div>
+      </section>
+
+      <section id="historyView" aria-labelledby="historyTitle" hidden>
+        <div class="page-heading"><div><div class="eyebrow">ACTIVITY HISTORY</div><h1 id="historyTitle">历史记录<span class="heading-dot">.</span></h1><p>按账号查找每一次更换，重新查看和下载已保存的结果。</p></div><button id="refreshHistoryButton" class="button button-secondary" type="button"><svg class="icon"><use href="#i-clock"/></svg>刷新记录</button></div>
+        <section class="card history-card">
+          <form id="historyFilterForm" class="history-filters" autocomplete="off"><div class="search-field"><label for="historySearch" class="field-label">账号邮箱</label><input id="historySearch" type="search" placeholder="输入邮箱搜索" maxlength="320" autocomplete="off"></div><div><label for="historyStatus" class="field-label">处理状态</label><select id="historyStatus"><option value="">全部状态</option><option value="success">成功</option><option value="error">未完成</option><option value="waiting_confirmation">待确认</option><option value="running">处理中</option><option value="queued">排队中</option><option value="skipped">已跳过</option><option value="interrupted">已中断</option></select></div><button class="button button-primary" type="submit">查询</button></form>
+          <p id="historyMessage" class="history-message" role="status">正在读取历史记录。</p>
+          <div class="table-scroll"><table class="record-table history-table"><thead><tr><th scope="col">时间 / 账号</th><th scope="col">处理方式</th><th scope="col">状态 / 阶段</th><th scope="col">操作</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+          <div class="pagination"><span id="historyPageInfo">0 条记录</span><div><button id="historyPrev" class="button button-secondary" type="button" disabled>上一页</button><button id="historyNext" class="button button-secondary" type="button" disabled>下一页</button></div></div>
+        </section>
+      </section>
+      <section id="relayView" aria-labelledby="relayTitle" hidden>
+        <div class="page-heading"><div><h1 id="relayTitle">中转站上号<span class="heading-dot">.</span></h1><p>连接你的 Sub2API，批量登录并接入指定 Business / Team 工作空间。</p></div></div>
+        <p id="relayCapability" class="notice relay-notice" role="status">正在检查本机服务是否支持上号。</p>
+        <fieldset id="relayControls" class="relay-controls" aria-label="中转站上号" disabled hidden>
+          <div class="relay-top">
+            <section class="card relay-card" aria-labelledby="relayConnectTitle">
+              <div class="card-heading"><h2 id="relayConnectTitle">连接 Sub2API</h2><span id="relayConnectionBadge" class="badge neutral">未连接</span></div>
+              <form id="relayConnectionForm" autocomplete="off">
+                <div class="relay-fields">
+                  <div id="relaySavedSiteFields" class="relay-saved-site-fields" hidden>
+                    <label for="relaySavedSite" class="field-label">已保存的中转站</label>
+                    <select id="relaySavedSite" aria-describedby="relaySavedSitesHint"><option value="">新建连接</option></select>
+                  </div>
+                  <div><label for="relayBaseUrl" class="field-label">站点地址</label><input id="relayBaseUrl" type="url" inputmode="url" placeholder="https://你的中转站域名" required spellcheck="false" autocomplete="off" maxlength="500"></div>
+                  <div><label for="relayAdminKey" class="field-label">管理员 Key</label><input id="relayAdminKey" type="password" required spellcheck="false" autocomplete="new-password" maxlength="1024" aria-describedby="relaySavedSitesHint"></div>
+                  <label id="relayRememberSiteOption" class="relay-checkbox relay-saved-site-fields" hidden><input id="relayRememberSite" type="checkbox" checked><span>记住此中转站（仅本机）</span></label>
+                </div>
+                <p id="relaySavedSitesHint" class="relay-message" role="status"></p>
+                <div class="relay-actions"><button id="relayConnect" class="button button-primary" type="submit">连接中转站</button><button id="relayDisconnect" class="button button-secondary" type="button" hidden>断开中转站</button><button id="relayDeleteSite" class="button button-secondary" type="button" hidden>删除保存</button><button id="relayReloadSites" class="text-button" type="button" hidden>重新读取已保存站点</button></div>
+              </form>
+              <p id="relayConnectionMessage" class="relay-message" role="status"></p>
+            </section>
+            <section class="card relay-card" aria-labelledby="relaySettingsTitle">
+              <div class="card-heading"><h2 id="relaySettingsTitle">入站设置</h2></div>
+              <p id="relaySettingsNotice" class="relay-message relay-settings-notice" role="status">连接中转站后可设置账号。</p>
+              <fieldset id="relaySettingsFields" class="relay-settings-fields" aria-label="OpenAI OAuth 账号设置" disabled>
+                <div class="relay-fields relay-basic-grid">
+                  <div>
+                    <details id="relayGroupsPicker" class="relay-group-picker">
+                      <summary><span>OpenAI 分组</span><span id="relayGroupsSummary" class="relay-picker-summary">未选择</span></summary>
+                      <div class="relay-group-body">
+                        <label for="relayGroupSearch" class="field-label">搜索分组</label>
+                        <input id="relayGroupSearch" type="search" placeholder="按名称或 ID 搜索" autocomplete="off" maxlength="140">
+                        <div id="relayGroupOptions" class="relay-group-options" aria-label="可用 OpenAI 分组"></div>
+                        <p id="relayGroupEmpty" class="relay-message" role="status"></p>
+                        <button id="relayGroupClear" class="text-button" type="button">清空分组选择</button>
+                      </div>
+                    </details>
+                    <p id="relayGroupHint" class="relay-message" aria-live="polite"></p>
+                  </div>
+                  <div>
+                    <label for="relayProxy" class="field-label">代理</label>
+                    <select id="relayProxy" aria-describedby="relayProxyHint"><option value="">不使用代理</option></select>
+                    <p id="relayProxyHint" class="relay-message"></p>
+                  </div>
+                </div>
+                <div class="relay-fields relay-number-grid">
+                  <div><label for="relayConcurrency" class="field-label">并发</label><input id="relayConcurrency" type="number" min="1" max="2147483647" step="1" inputmode="numeric" value="10"></div>
+                  <div><label for="relayLoadFactor" class="field-label">负载权重</label><input id="relayLoadFactor" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="按并发计算"></div>
+                  <div><label for="relayPriority" class="field-label">优先级</label><input id="relayPriority" type="number" min="1" max="2147483647" step="1" inputmode="numeric" value="1"></div>
+                  <div><label for="relayRateMultiplier" class="field-label">计费倍率</label><input id="relayRateMultiplier" type="number" min="0" max="9007199254740991" step="any" inputmode="decimal" value="1"></div>
+                </div>
+                <div class="relay-fields relay-basic-grid">
+                  <div>
+                    <label for="relayExpiresAt" class="field-label">过期时间</label>
+                    <input id="relayExpiresAt" type="datetime-local" aria-describedby="relayExpiryHint">
+                    <div id="relayExpiryPresets" class="relay-presets">
+                      <button class="text-button" type="button" data-days="1">1 天</button>
+                      <button class="text-button" type="button" data-days="7">7 天</button>
+                      <button class="text-button" type="button" data-days="30">30 天</button>
+                      <button class="text-button" type="button" data-days="0">不过期</button>
+                    </div>
+                    <p id="relayExpiryHint" class="relay-message">按浏览器所在时区填写。</p>
+                  </div>
+                  <div>
+                    <label for="relayUpstreamId" class="field-label">上游请求 ID 请求头</label>
+                    <input id="relayUpstreamId" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="选填，例如 x-request-id">
+                    <label class="relay-checkbox relay-auto-pause"><input id="relayAutoPause" type="checkbox" checked><span>过期后自动暂停调度</span></label>
+                  </div>
+                </div>
+                <div class="relay-fields relay-basic-grid relay-workspace-settings">
+                  <div>
+                    <label class="relay-checkbox"><input id="relayBusinessOnly" type="checkbox" aria-describedby="relayWorkspaceHint" checked><span>仅接入 Business / Team 工作空间</span></label>
+                    <p id="relayWorkspaceHint" class="relay-message">添加前会核对 OpenAI 授权返回的工作空间类型。</p>
+                  </div>
+                  <div>
+                    <label for="relayWorkspaceId" class="field-label">指定工作空间 ID</label>
+                    <input id="relayWorkspaceId" type="text" placeholder="选填，有多个工作空间时可指定" maxlength="128" autocomplete="off" spellcheck="false" aria-describedby="relayWorkspaceIdHint">
+                    <p id="relayWorkspaceIdHint" class="relay-message">填写后按该 ID 选择并核对团队。留空时自动选择唯一明确的 Business / Team 空间；多个团队会等待你选择。</p>
+                  </div>
+                </div>
+                <div id="relayAccountOptions" class="relay-fields relay-basic-grid">
+                  <div>
+                    <label for="relayCodexFingerprintMode" class="field-label">Codex 指纹收敛</label>
+                    <select id="relayCodexFingerprintMode" aria-describedby="relayFingerprintHint" disabled>
+                      <option value="off">关闭（透传，默认）</option>
+                      <option value="device">仅设备</option>
+                      <option value="session">设备+会话</option>
+                      <option value="full">完全收敛</option>
+                    </select>
+                    <p id="relayFingerprintHint" class="relay-message">按账号统一设备或会话标识。默认关闭，需要时可选择与中转站后台相同的模式。</p>
+                  </div>
+                  <div>
+                    <label for="relayPlanTypeOverride" class="field-label">订阅档位（手动覆盖）</label>
+                    <select id="relayPlanTypeOverride" aria-describedby="relayPlanTypeHint" disabled>
+                      <option value="">自动识别（默认）</option>
+                      <option value="free">Free</option>
+                      <option value="go">Go</option>
+                      <option value="plus">Plus</option>
+                      <option value="prolite">Pro 100</option>
+                      <option value="pro">Pro 200</option>
+                      <option value="promax">Pro 500</option>
+                      <option value="team">Business（Team）</option>
+                      <option value="self_serve_business_usage_based">Business（按用量）</option>
+                      <option value="self_serve_business_prolite">Business Premium</option>
+                      <option value="business">Enterprise（business）</option>
+                      <option value="enterprise">Enterprise</option>
+                      <option value="ent26">Enterprise（ent26）</option>
+                      <option value="enterprise_cbp_usage_based">Enterprise（按用量）</option>
+                      <option value="enterprise_cbp_automation">Enterprise（Automation）</option>
+                      <option value="edu">Edu</option>
+                      <option value="edu_plus">Edu Plus</option>
+                      <option value="edu_pro">Edu Pro</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                    <p id="relayPlanTypeHint" class="relay-message">调整中转站记录的档位，不改变账号实际套餐。令牌刷新或返回 429 时，中转站可能按真实档位更新此项；工作空间仍按本次授权核对。</p>
+                  </div>
+                </div>
+                <p id="relayAccountOptionsNotice" class="relay-message" role="status">重新启动本机工具后可使用这两个选项。</p>
+                <div class="relay-preset-setting">
+                  <label class="relay-checkbox"><input id="relayRememberPreset" type="checkbox" aria-describedby="relayPresetStatus"><span>记住此站点的分组、并发、优先级、工作空间、指纹收敛和订阅档位</span></label>
+                  <p id="relayPresetStatus" class="relay-message" role="status"></p>
+                </div>
+                <details class="relay-settings-section" id="relayModelSettings">
+                  <summary>模型白名单与映射</summary>
+                  <div class="relay-section-body">
+                    <div class="relay-catalog-row">
+                      <button class="button button-secondary" id="relaySyncModels" type="button">从站点同步模型目录</button>
+                      <p id="relayModelNotice" class="relay-message" role="status"></p>
+                    </div>
+                    <div class="relay-fields">
+                      <div>
+                        <label for="relayModelMode" class="field-label">模型策略</label>
+                        <select id="relayModelMode">
+                          <option value="unrestricted">不限制</option>
+                          <option value="whitelist">模型白名单</option>
+                          <option value="mapping">模型映射</option>
+                        </select>
+                      </div>
+                      <div class="relay-model-editor" id="relayWhitelistPanel" hidden>
+                        <label for="relayWhitelistInput" class="field-label">添加允许的模型</label>
+                        <div class="relay-edit-row"><input id="relayWhitelistInput" type="text" list="relayModelCatalog" maxlength="256" autocomplete="off" spellcheck="false" placeholder="输入或从目录选择模型 ID"><button id="relayWhitelistAdd" class="button button-secondary" type="button">添加</button></div>
+                        <p id="relayWhitelistMessage" class="relay-message" role="status"></p>
+                        <div id="relayWhitelistModels" class="relay-chips" aria-label="白名单模型"></div>
+                        <button id="relayWhitelistClear" class="text-button" type="button">清空白名单</button>
+                      </div>
+                      <div class="relay-model-editor" id="relayModelMappingPanel" hidden>
+                        <div id="relayModelMappings" class="relay-mappings" aria-label="模型映射"></div>
+                        <div class="relay-actions"><button id="relayModelMappingAdd" class="button button-secondary" type="button">添加映射</button><button id="relayModelMappingClear" class="text-button" type="button">清空映射</button></div>
+                      </div>
+                    </div>
+                    <p class="relay-message">模型目录提供填写候选，实际可用模型取决于上游账号。</p>
+                    <datalist id="relayModelCatalog"></datalist>
+                  </div>
+                </details>
+                <details class="relay-settings-section" id="relayRequestSettings">
+                  <summary>请求与客户端</summary>
+                  <div class="relay-section-body relay-fields relay-basic-grid">
+                    <div class="relay-checklist">
+                      <label class="relay-checkbox"><input id="relayPassthrough" type="checkbox"><span>请求透传</span></label>
+                      <label class="relay-checkbox"><input id="relayPassthroughModelFilter" type="checkbox"><span>透传时仍使用模型规则</span></label>
+                      <label class="relay-checkbox"><input id="relayToolCompatibility" type="checkbox"><span>工具调用兼容（展平命名空间）</span></label>
+                      <label class="relay-checkbox"><input id="relayCodexOnly" type="checkbox"><span>仅允许官方 Codex 客户端</span></label>
+                      <label class="relay-checkbox"><input id="relayCodexAllowAppServer" type="checkbox"><span>同时允许 Codex App Server</span></label>
+                      <label class="relay-checkbox"><input id="relayLongContext" type="checkbox"><span>启用长上下文计费</span></label>
+                    </div>
+                    <div>
+                      <label for="relayWebSocketMode" class="field-label">Responses WebSocket</label>
+                      <select id="relayWebSocketMode">
+                        <option value="off">关闭</option>
+                        <option value="ctx_pool">连接池</option>
+                        <option value="passthrough">透传</option>
+                        <option value="http_bridge">HTTP 桥接</option>
+                      </select>
+                    </div>
+                  </div>
+                </details>
+                <details class="relay-settings-section" id="relayCompactSettings">
+                  <summary>Compact 与图片</summary>
+                  <div class="relay-section-body relay-fields">
+                    <div class="relay-fields relay-basic-grid">
+                      <div>
+                        <label for="relayCompactMode" class="field-label">Compact 支持</label>
+                        <select id="relayCompactMode"><option value="auto">自动识别</option><option value="force_on">强制支持</option><option value="force_off">强制不支持</option></select>
+                      </div>
+                      <div>
+                        <fieldset class="relay-image-tiers" id="relayImageSizes"><legend class="field-label">允许的图片尺寸</legend>
+                          <div class="relay-inline-options">
+                            <label class="relay-checkbox"><input type="checkbox" value="1K" checked><span>1K</span></label>
+                            <label class="relay-checkbox"><input type="checkbox" value="2K" checked><span>2K</span></label>
+                            <label class="relay-checkbox"><input type="checkbox" value="4K" checked><span>4K</span></label>
+                          </div>
+                        </fieldset>
+                      </div>
+                    </div>
+                    <div class="relay-model-editor">
+                      <div id="relayCompactMappings" class="relay-mappings" aria-label="Compact 模型映射"></div>
+                      <div class="relay-actions"><button id="relayCompactMappingAdd" class="button button-secondary" type="button">添加 Compact 映射</button><button id="relayCompactMappingClear" class="text-button" type="button">清空 Compact 映射</button></div>
+                    </div>
+                  </div>
+                </details>
+                <details class="relay-settings-section" id="relayOperationSettings">
+                  <summary>备注与临时停止调度</summary>
+                  <div class="relay-section-body relay-fields">
+                    <div><label for="relayNotes" class="field-label">账号备注</label><textarea id="relayNotes" rows="2" class="relay-textarea" maxlength="2048" autocomplete="off" spellcheck="false" placeholder="选填"></textarea></div>
+                    <div>
+                      <p class="field-label" id="relayTempRuleLabel">临时停止调度规则</p>
+                      <p class="relay-message">上游响应符合规则时，按设置的范围和时长暂停调度。</p>
+                      <div id="relayTempRules" class="relay-rule-list" aria-labelledby="relayTempRuleLabel"></div>
+                      <div class="relay-actions"><button id="relayTempRuleAdd" class="button button-secondary" type="button">添加调度规则</button><button id="relayTempRuleClear" class="text-button" type="button">清空调度规则</button></div>
+                    </div>
+                  </div>
+                </details>
+              </fieldset>
+              <p class="relay-message">开始授权时会为该账号保存这次选定的设置。</p>
+              <div class="relay-actions"><a id="relayNativeLink" class="text-button" target="_blank" rel="noopener noreferrer" hidden>打开站点的账号管理页</a></div>
+            </section>
+          </div>
+          <section id="relayWatch" class="card relay-card" aria-labelledby="relayWatchTitle">
+            <div class="card-heading"><h2 id="relayWatchTitle">自动检查与恢复</h2><span id="watchBadge" class="badge neutral" hidden></span></div>
+            <p id="watchCapability" class="relay-message" role="status">正在检查本机后台。</p>
+            <div id="watchContent" hidden>
+              <form id="watchForm" autocomplete="off">
+                <label class="checkbox-label"><input id="watchEnabled" type="checkbox">发现 401 后自动重授权并启用调用</label>
+                <div class="relay-fields watch-fields">
+                  <div><label for="watchSite" class="field-label">已保存的中转站</label><select id="watchSite"><option value="">请选择站点</option></select></div>
+                  <div><label for="watchInterval" class="field-label">间隔（分钟）</label><input id="watchInterval" type="number" min="1" max="60" step="1" value="5" required></div>
+                </div>
+                <p id="watchSiteHint" class="relay-message"></p>
+                <div class="relay-actions">
+                  <button id="watchSave" class="button button-primary" type="submit" disabled>保存自动恢复设置</button>
+                  <button id="watchCheck" class="button button-secondary" type="button" disabled>立即检查</button>
+                </div>
+              </form>
+              <p class="relay-message">默认每 5 分钟检查一次，使用最新的手动导入资料或更换记录完成登录，恢复原账号及原工作空间。本机工具运行时，关闭网页也会继续；关闭开关后，当前账号完成，后续账号停止。</p>
+              <p id="watchNotice" class="relay-message" role="status"></p>
+              <div id="watchStatus" class="watch-status" hidden>
+                <p id="watchMessage" class="relay-message"></p>
+                <dl class="watch-times">
+                  <div><dt>上次检查</dt><dd id="watchLastScan">—</dd></div>
+                  <div><dt>下次检查</dt><dd id="watchNextScan">—</dd></div>
+                  <div><dt>失效账号</dt><dd id="watchCount">—</dd></div>
+                </dl>
+                <div id="watchResults" hidden>
+                  <p id="watchResultsHint" class="relay-message"></p>
+                  <div class="relay-actions"><a id="watchAdminLink" class="text-button" target="_blank" rel="noopener noreferrer" hidden>到中转站管理账号</a></div>
+                  <div class="table-scroll relay-table watch-table">
+                    <table class="record-table"><thead><tr><th scope="col">邮箱 / 站内账号</th><th scope="col">状态</th></tr></thead><tbody id="watchRows"></tbody></table>
+                  </div>
+                </div>
+                <div id="watchRetries" hidden>
+                  <p class="field-label">等待或暂停的账号</p>
+                  <p class="relay-message">普通失败后分别等待 15、30 分钟，连续第三次失败暂停。账号明确被删除、封禁或停用时立即记录原因并暂停；人工确认超时或结果不确定时也会暂停。处理原因后可允许重新尝试。</p>
+                  <div class="table-scroll relay-table watch-table">
+                    <table class="record-table"><thead><tr><th scope="col">邮箱 / 站内账号</th><th scope="col">原因与操作</th></tr></thead><tbody id="watchRetryRows"></tbody></table>
+                  </div>
+                </div>
+                <details id="watchEvents"><summary>最近检查与恢复记录</summary><ol id="watchEventRows" class="watch-events"></ol></details>
+              </div>
+            </div>
+          </section>
+          <section id="relayReauth" class="card relay-card" aria-labelledby="relayReauthTitle">
+            <div class="card-heading"><h2 id="relayReauthTitle">失效账号重授权</h2></div>
+            <p id="reauthCapability" class="relay-message" role="status">正在检查本机后台。</p>
+            <div id="reauthContent" hidden>
+              <section id="reauthImportSection" aria-labelledby="reauthImportTitle">
+                <h3 id="reauthImportTitle" class="field-label">导入当前账号资料</h3>
+                <p id="reauthImportCapability" class="relay-message" role="status" hidden></p>
+                <form id="reauthImportForm" autocomplete="off">
+                  <label for="reauthImportInput" class="field-label">邮箱----密码----当前2FA，每行一个账号</label>
+                  <textarea id="reauthImportInput" class="relay-textarea" rows="4" maxlength="4194304" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="reauthImportHint" placeholder="name@example.com----密码----当前2FA密钥"></textarea>
+                  <p id="reauthImportHint" class="relay-message">一次导入 1 至 500 个账号。自己改过 2FA 的账号也可以直接导入，无需先在工具里更换。同邮箱再次导入会更新资料；资料在本机加密保存，刷新后仍保留。</p>
+                  <div class="relay-actions">
+                    <button id="reauthImportSave" class="button button-secondary" type="submit" disabled>导入账号</button>
+                    <button id="reauthImportStart" class="button button-primary" type="button" disabled>导入并启动检测</button>
+                  </div>
+                  <p class="relay-message">启动检测使用上方“自动检查与恢复”中选择的已保存中转站和间隔，发现 401 后自动恢复。仅导入不要求先连接中转站。</p>
+                </form>
+                <p id="reauthImportNotice" class="relay-message" role="status"></p>
+                <details id="reauthImportedList" hidden><summary id="reauthImportedCount"></summary>
+                  <div class="table-scroll relay-table imported-table">
+                    <table class="record-table"><thead><tr><th scope="col">邮箱</th><th scope="col">来源</th><th scope="col">更新时间</th></tr></thead><tbody id="reauthImportedRows"></tbody></table>
+                  </div>
+                </details>
+              </section>
+              <section class="reauth-progress" aria-label="选择账号重授权">
+                <p class="relay-message">查询本站授权失效的账号，匹配当前可用的账号资料。同一邮箱有多个工作空间时，按工作空间和站内账号编号选择。</p>
+                <form id="reauthSearchForm" class="reauth-search" autocomplete="off">
+                  <div><label class="field-label" for="reauthSearch">账号邮箱</label><input id="reauthSearch" type="email" maxlength="254" placeholder="输入完整邮箱，留空查看全部" spellcheck="false"></div>
+                  <button id="reauthSearchButton" class="button button-secondary" type="submit">查询失效账号</button>
+                </form>
+                <p id="reauthNotice" class="relay-message" role="status"></p>
+                <div id="reauthCandidateList" hidden>
+                  <div id="reauthCandidateTable" class="table-scroll relay-table reauth-table" hidden>
+                    <table class="record-table"><thead><tr><th scope="col">选择</th><th scope="col">邮箱 / 站内账号</th><th scope="col">工作空间</th><th scope="col">账号资料</th></tr></thead><tbody id="reauthCandidateRows"></tbody></table>
+                  </div>
+                  <div id="reauthPages" class="pagination" hidden><span id="reauthPageInfo"></span><div><button id="reauthPrev" class="button button-secondary" type="button">上一页</button><button id="reauthNext" class="button button-secondary" type="button">下一页</button></div></div>
+                  <div class="relay-actions">
+                    <button id="reauthSubmit" class="button button-primary" type="button" disabled>重授权并启用调用</button>
+                    <span id="reauthSelected" class="quiet-label" role="status">已选 0 个账号</span>
+                    <button id="reauthClearSelection" class="text-button" type="button" hidden>清除选择</button>
+                  </div>
+                </div>
+              </section>
+              <section id="reauthProgress" class="reauth-progress" aria-labelledby="reauthProgressTitle" hidden>
+                <div class="card-heading"><h3 id="reauthProgressTitle">最近一次重授权</h3><span id="reauthProgressBadge" class="badge neutral"></span></div>
+                <p id="reauthProgressMessage" class="relay-message" role="status"></p>
+                <div class="relay-actions">
+                  <button id="reauthStop" class="button button-secondary" type="button" hidden>停止后续账号</button>
+                  <button id="reauthCancel" class="text-button" type="button" hidden>取消当前登录并停止</button>
+                </div>
+                <div class="table-scroll relay-table reauth-results">
+                  <table class="record-table"><thead><tr><th scope="col">邮箱 / 站内账号</th><th scope="col">工作空间</th><th scope="col">结果</th></tr></thead><tbody id="reauthResultRows"></tbody></table>
+                </div>
+              </section>
+            </div>
+          </section>
+          <section class="card relay-card" aria-labelledby="relayQueueTitle">
+            <div class="card-heading"><h2 id="relayQueueTitle">待接入账号</h2><span id="relayCount" class="quiet-label">0 个账号</span></div>
+            <form id="relayImportForm" autocomplete="off">
+              <label for="relayEmails" class="field-label">每行一个账号：邮箱----密码----2FA</label>
+              <textarea id="relayEmails" rows="3" class="relay-textarea" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="relayImportHint" placeholder="name@example.com----密码----2FA密钥" maxlength="161000"></textarea>
+              <p id="relayImportHint" class="relay-message">三段信息用于本次自动登录，提交后清空输入框，不写入浏览器存储。也支持仅填写邮箱，再自行登录。</p>
+              <div class="relay-actions">
+                <button class="button button-primary" id="relayImportStart" type="submit" disabled>加入并自动接入</button>
+                <button class="button button-secondary" type="submit">仅加入列表</button>
+              </div>
+            </form>
+            <p class="relay-message">定制中转站在兑换授权时会尝试关闭该账号的训练数据共享。</p>
+            <p class="relay-message">账号按顺序打开独立 Chrome 窗口，完成登录、选择团队、授权和入站。人机验证、邮箱验证或无法唯一确定的团队会显示等待提示。</p>
+            <div class="relay-actions">
+              <p id="relayBatchStatus" class="relay-message" role="status"></p>
+              <button id="relayStopBatch" class="text-button" type="button" hidden>停止后续授权</button>
+            </div>
+            <p id="relayQueueMessage" class="relay-message" role="status"></p>
+            <div id="relayTable" class="table-scroll relay-table" hidden>
+              <table class="record-table"><thead><tr><th scope="col">邮箱</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead><tbody id="relayRows"></tbody></table>
+            </div>
+            <section id="relayActive" class="relay-active" aria-labelledby="relayActiveTitle" hidden>
+              <h3 id="relayActiveTitle" tabindex="-1">账号接入进度</h3>
+              <p id="relayActiveEmail" class="relay-email"></p>
+              <p id="relayActiveSettings" class="relay-message"></p>
+              <p id="relayActiveWorkspace" class="relay-message" hidden></p>
+              <p id="relayCallbackMode" class="relay-message"></p>
+              <p id="relayPopupStatus" class="relay-message" role="status"></p>
+              <p class="relay-message">如果 OpenAI 显示浏览器验证，请在授权标签页完成，随后继续登录。</p>
+              <div class="relay-actions">
+                <a id="relayAuthLink" class="button button-primary" target="_blank" rel="noopener noreferrer" aria-describedby="relayActiveWorkspace">打开 OpenAI 授权页（新标签）</a>
+                <button id="relayCancel" class="button button-secondary" type="button">取消本次授权</button>
+                <button id="relayCheck" class="text-button" type="button" hidden>查询授权状态</button>
+              </div>
+              <details id="relayManual" class="relay-manual">
+                <summary>手动填写回调地址</summary>
+                <form id="relayFinishForm" class="relay-finish" autocomplete="off">
+                  <label for="relayCallbackUrl" class="field-label">授权后浏览器地址栏的完整地址</label>
+                  <input id="relayCallbackUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" required maxlength="8192" aria-describedby="relayCallbackHint">
+                  <p id="relayCallbackHint" class="relay-message">若跳转后提示 localhost 无法访问，也可以复制地址栏的完整地址。</p>
+                  <div class="relay-actions"><button id="relayFinish" class="button button-secondary" type="submit">提交回调地址并添加账号</button></div>
+                </form>
+              </details>
+              <p id="relayFlowMessage" class="relay-message" role="status"></p>
+            </section>
+          </section>
+        </fieldset>
+      </section>
+      <footer class="page-footer"><span>ChatGPT 2FA 本地工具</span><span id="footerNote">记录保存在本机，完整结果按需查看</span></footer>
+    </main>
+  </div>
+  <dialog id="recordDialog" class="record-dialog" aria-labelledby="recordDialogTitle"><div class="dialog-heading"><div><span class="eyebrow">SAVED RECORD</span><h2 id="recordDialogTitle">已保存的更换记录</h2></div><button id="closeDialogButton" class="dialog-close" type="button" aria-label="关闭记录">×</button></div><p id="recordDialogMeta" class="dialog-meta"></p><p class="dialog-note">这里读取的是已保存记录，不会再次修改账号。</p><label for="historyResultInput" class="field-label">完整账号结果</label><div class="input-wrap textarea-wrap"><textarea id="historyResultInput" rows="3" readonly class="secret-masked" autocomplete="off" spellcheck="false"></textarea><button id="toggleHistoryResult" class="visibility-button" type="button" aria-label="显示历史结果" aria-pressed="false"><svg class="icon"><use href="#i-eye"/></svg></button></div><div class="dialog-actions"><button id="copyHistoryResult" class="button button-primary" type="button">复制结果</button><button id="downloadHistoryResult" class="button button-secondary" type="button">下载结果</button></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><div class="noscript-message">请启用浏览器 JavaScript 后使用本地工具。</div></noscript>
+</body>
+</html>
